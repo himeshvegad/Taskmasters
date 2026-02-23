@@ -6,7 +6,7 @@ $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $email = trim($_POST['email']);
-    $password = $_POST['password'];
+    $password = trim($_POST['password']);
     
     // Use prepared statement to prevent SQL injection
     $stmt = $conn->prepare("SELECT id, name, email, password, is_admin FROM users WHERE email = ?");

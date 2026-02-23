@@ -8,7 +8,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $name = trim($_POST['name']);
     $email = trim($_POST['email']);
     $phone = trim($_POST['phone']);
-    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    $password = trim($_POST['password']);
+    
+    // Hash password using bcrypt (PASSWORD_DEFAULT uses bcrypt)
+    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
     
     // Check if email exists using prepared statement
     $stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
@@ -21,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     } else {
         // Insert new user with prepared statement
         $stmt = $conn->prepare("INSERT INTO users (name, email, phone, password) VALUES (?, ?, ?, ?)");
-        $stmt->bind_param("ssss", $name, $email, $phone, $password);
+        $stmt->bind_param("ssss", $name, $email, $phone, $hashed_password);
         
         if ($stmt->execute()) {
             header('Location: login.php?registered=1');
