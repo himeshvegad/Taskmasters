@@ -52,3 +52,10 @@ INSERT INTO services (category, name, price, description) VALUES
 ('individual', 'Rent Poster', '399', 'Rental property poster'),
 ('individual', 'Wedding Invitation', '999', 'Wedding invitation card design'),
 ('individual', 'Photo Editing', '299', 'Professional photo editing');
+
+-- Create default admin account
+-- Email: admin@taskmasters.com
+-- Password: admin123
+INSERT INTO users (name, email, phone, password, is_admin) 
+VALUES ('Admin', 'admin@taskmasters.com', '1234567890', 
+'$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 1);

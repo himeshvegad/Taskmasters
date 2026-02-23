@@ -5,10 +5,15 @@ require_once 'config/database.php';
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $email = $conn->real_escape_string($_POST['email']);
+    $email = trim($_POST['email']);
     $password = $_POST['password'];
     
-    $result = $conn->query("SELECT * FROM users WHERE email = '$email'");
+    // Use prepared statement to prevent SQL injection
+    $stmt = $conn->prepare("SELECT id, name, email, password, is_admin FROM users WHERE email = ?");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
     if ($result->num_rows > 0) {
         $user = $result->fetch_assoc();
         if (password_verify($password, $user['password'])) {
@@ -18,18 +23,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $_SESSION['user_email'] = $user['email'];
             $_SESSION['is_admin'] = $user['is_admin'];
             
-            if ($user['is_admin']) {
+            // Role-based redirect
+            if ($user['is_admin'] == 1) {
                 header('Location: admin/dashboard.php');
             } else {
                 header('Location: dashboard.php');
             }
             exit;
         } else {
-            $error = 'Invalid password';
+            $error = 'Incorrect password';
         }
     } else {
         $error = 'Email not found';
     }
+    $stmt->close();
 }
 ?>
 <!DOCTYPE html>
@@ -64,7 +71,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </div>
                 <div>
                     <label class="block text-gray-700 mb-2">Password</label>
-                    <input type="password" name="password" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600">
+                    <div class="relative">
+                        <input type="password" id="userPassword" name="password" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600">
+                        <button type="button" onclick="toggleUserPassword()" class="absolute right-3 top-2 text-gray-500 hover:text-gray-700">
+                            <i id="userEyeIcon" class="fas fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
                 <button type="submit" class="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 font-semibold">
                     Sign In
@@ -82,5 +94,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
         </div>
     </div>
+
+    <script>
+        function toggleUserPassword() {
+            const passwordInput = document.getElementById('userPassword');
+            const eyeIcon = document.getElementById('userEyeIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            }
+        }
+    </script>
 </body>
 </html>

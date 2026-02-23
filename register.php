@@ -5,23 +5,32 @@ require_once 'config/database.php';
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $name = $conn->real_escape_string($_POST['name']);
-    $email = $conn->real_escape_string($_POST['email']);
-    $phone = $conn->real_escape_string($_POST['phone']);
+    $name = trim($_POST['name']);
+    $email = trim($_POST['email']);
+    $phone = trim($_POST['phone']);
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
     
-    $check = $conn->query("SELECT id FROM users WHERE email = '$email'");
+    // Check if email exists using prepared statement
+    $stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    $check = $stmt->get_result();
+    
     if ($check->num_rows > 0) {
         $error = 'Email already registered';
     } else {
-        $sql = "INSERT INTO users (name, email, phone, password) VALUES ('$name', '$email', '$phone', '$password')";
-        if ($conn->query($sql)) {
+        // Insert new user with prepared statement
+        $stmt = $conn->prepare("INSERT INTO users (name, email, phone, password) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("ssss", $name, $email, $phone, $password);
+        
+        if ($stmt->execute()) {
             header('Location: login.php?registered=1');
             exit;
         } else {
             $error = 'Registration failed';
         }
     }
+    $stmt->close();
 }
 ?>
 <!DOCTYPE html>
