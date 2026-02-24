@@ -22,8 +22,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if ($check->num_rows > 0) {
         $error = 'Email already registered';
     } else {
-        // Insert new user with prepared statement
-        $stmt = $conn->prepare("INSERT INTO users (name, email, phone, password) VALUES (?, ?, ?, ?)");
+        // Insert new user with prepared statement and set first_order_discount to 1
+        $stmt = $conn->prepare("INSERT INTO users (name, email, phone, password, first_order_discount) VALUES (?, ?, ?, ?, 1)");
         $stmt->bind_param("ssss", $name, $email, $phone, $hashed_password);
         
         if ($stmt->execute()) {

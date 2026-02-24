@@ -1,0 +1,51 @@
+# QR Code Setup Instructions
+
+## ✅ QR Code Has Been Updated!
+
+The checkout page now uses your custom QR code image.
+
+## 📁 Where to Place Your QR Code:
+
+**File Location:**
+```
+c:\xampp\htdocs\Taskmasters\assets\images\my-qr.png
+```
+
+## 📋 Steps to Add Your QR Code:
+
+1. **Rename your QR code image** to: `my-qr.png`
+2. **Copy the file** to: `c:\xampp\htdocs\Taskmasters\assets\images\`
+3. **Done!** The QR code will appear on the checkout page
+
+## 🎨 QR Code Specifications:
+
+- **File Name**: my-qr.png
+- **Recommended Size**: 500x500 pixels or larger
+- **Format**: PNG (supports transparency)
+- **Quality**: High resolution for clear scanning
+
+## 🔧 Technical Details:
+
+The QR code is:
+- ✅ Centered properly
+- ✅ Responsive (adapts to screen size)
+- ✅ Fixed dimensions: 256x256px display size
+- ✅ Maintains aspect ratio
+- ✅ Rounded corners for modern look
+
+## 🌐 View Your QR Code:
+
+After placing your image, visit:
+**http://localhost/Taskmasters/checkout.php?order_id=1**
+
+(You need to create an order first to see the checkout page)
+
+## 💡 Alternative Formats:
+
+If you want to use JPG instead of PNG:
+- Rename your file to: `my-qr.jpg`
+- Update line 70 in checkout.php to: `src="assets/images/my-qr.jpg"`
+
+---
+
+**Note**: Make sure your QR code image is clear and scannable for best user experience!

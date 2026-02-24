@@ -214,12 +214,12 @@ require_once 'config/database.php';
                     <h6 class="font-bold mb-4">Contact</h6>
                     <ul class="space-y-2 text-gray-400">
                         <li><i class="fas fa-envelope mr-2"></i> support@taskmasters.com</li>
-                        <li><i class="fas fa-phone mr-2"></i> +91 1234567890</li>
+                        <li><i class="fas fa-phone mr-2"></i> +91 7041707025
                     </ul>
                 </div>
             </div>
             <div class="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400">
-                <p>&copy; 2024 TaskMasters. All rights reserved.</p>
+                <p>&copy; 2026 TaskMasters. All rights reserved.</p>
             </div>
         </div>
     </footer>

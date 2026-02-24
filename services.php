@@ -8,7 +8,18 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $category = isset($_GET['category']) ? $conn->real_escape_string($_GET['category']) : 'student';
-$result = $conn->query("SELECT * FROM services WHERE category = '$category'");
+
+// Get unique services using GROUP BY to prevent duplicates
+$stmt = $conn->prepare("SELECT id, category, name, price, description FROM services WHERE category = ? GROUP BY name, category ORDER BY name ASC");
+$stmt->bind_param("s", $category);
+$stmt->execute();
+$result = $stmt->get_result();
+
+// Store in array to prevent multiple iterations
+$services = [];
+while($row = $result->fetch_assoc()) {
+    $services[] = $row;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -43,20 +54,41 @@ $result = $conn->query("SELECT * FROM services WHERE category = '$category'");
             <a href="?category=individual" class="px-6 py-2 rounded-lg <?php echo $category == 'individual' ? 'bg-purple-500 text-white' : 'bg-white text-gray-700'; ?>">Individual</a>
         </div>
 
+        <?php if(isset($_GET['fixed'])): ?>
+            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6">
+                ✓ Database cleaned! All duplicates removed.
+            </div>
+        <?php endif; ?>
+
         <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <?php while($service = $result->fetch_assoc()): ?>
-                <div class="bg-white rounded-lg shadow-lg p-6">
-                    <h3 class="text-xl font-bold mb-2"><?php echo htmlspecialchars($service['name']); ?></h3>
+            <?php 
+            if (count($services) > 0):
+                foreach($services as $service): 
+            ?>
+                <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+                    <h3 class="text-xl font-bold mb-2 text-gray-800"><?php echo htmlspecialchars($service['name']); ?></h3>
                     <p class="text-gray-600 mb-4"><?php echo htmlspecialchars($service['description']); ?></p>
                     <div class="flex justify-between items-center">
                         <span class="text-2xl font-bold text-purple-600">₹<?php echo htmlspecialchars($service['price']); ?></span>
-                        <a href="order.php?service_id=<?php echo $service['id']; ?>" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700">
+                        <a href="order.php?service_id=<?php echo $service['id']; ?>" class="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-2 rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all">
                             Order Now
                         </a>
                     </div>
                 </div>
-            <?php endwhile; ?>
+            <?php 
+                endforeach;
+            else:
+            ?>
+                <div class="col-span-3 text-center py-12">
+                    <p class="text-gray-500 text-lg">No services available in this category.</p>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
+
+    <?php 
+    $stmt->close();
+    $conn->close();
+    ?>
 </body>
 </html>
