@@ -1,44 +1,41 @@
 <?php
 session_start();
-if (!isset($_SESSION['admin_id'])) {
+require_once '../config/db.php';
+
+if (!isset($_SESSION['admin_logged_in'])) {
     header('Location: login.php');
     exit;
 }
 
-require_once '../config/db.php';
+$conn = getDBConnection();
+$order_id = $_GET['id'] ?? 0;
 
-$order_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
-$order = $conn->query("SELECT * FROM guest_orders WHERE id = $order_id")->fetch_assoc();
-
-if (!$order) {
-    header('Location: dashboard.php');
-    exit;
-}
-
-// Handle status updates
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+// Handle form submissions
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['verify_payment'])) {
-        $conn->query("UPDATE guest_orders SET payment_status = 'verified' WHERE id = $order_id");
-        header("Location: order_details.php?id=$order_id&success=payment_verified");
+        $conn->query("UPDATE guest_orders SET status = 'in_progress' WHERE id = $order_id");
+        header('Location: order_details.php?id=' . $order_id);
         exit;
     }
     
-    if (isset($_POST['update_status'])) {
-        $new_status = $_POST['order_status'];
-        $conn->query("UPDATE guest_orders SET order_status = '$new_status' WHERE id = $order_id");
-        header("Location: order_details.php?id=$order_id&success=status_updated");
-        exit;
-    }
-    
-    if (isset($_FILES['delivered_file'])) {
-        $target_dir = "../uploads/delivered/";
-        $file_path = $target_dir . time() . '_' . basename($_FILES['delivered_file']['name']);
-        if (move_uploaded_file($_FILES['delivered_file']['tmp_name'], $file_path)) {
-            $conn->query("UPDATE guest_orders SET delivered_file = '$file_path', order_status = 'completed' WHERE id = $order_id");
-            header("Location: order_details.php?id=$order_id&success=file_uploaded");
+    if (isset($_POST['upload_delivery'])) {
+        $file = $_FILES['delivered_file'];
+        $upload_dir = '../uploads/delivered/';
+        $file_name = time() . '_' . basename($file['name']);
+        $target_path = $upload_dir . $file_name;
+        
+        if (move_uploaded_file($file['tmp_name'], $target_path)) {
+            $conn->query("UPDATE guest_orders SET delivered_file = '$file_name', status = 'delivered' WHERE id = $order_id");
+            header('Location: order_details.php?id=' . $order_id);
             exit;
         }
     }
+}
+
+// Get order details
+$order = $conn->query("SELECT * FROM guest_orders WHERE id = $order_id")->fetch_assoc();
+if (!$order) {
+    die('Order not found');
 }
 ?>
 <!DOCTYPE html>
@@ -46,132 +43,162 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Order Details - Admin</title>
+    <title>Order Details - TaskMasters Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        * { font-family: 'Inter', sans-serif; }
-        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Inter', sans-serif; }</style>
 </head>
 <body class="bg-gray-50">
-    <nav class="bg-white shadow-sm border-b">
-        <div class="max-w-7xl mx-auto px-6 py-4">
-            <a href="dashboard.php" class="text-purple-600 hover:text-purple-700 font-semibold">
-                <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+    <!-- Header -->
+    <nav class="bg-gradient-to-r from-purple-600 to-purple-800 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <a href="dashboard.php" class="hover:text-gray-200">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
+                <h1 class="text-2xl font-bold">Order Details</h1>
+            </div>
+            <a href="logout.php" class="bg-white text-purple-600 px-4 py-2 rounded-lg hover:bg-gray-100">
+                <i class="fas fa-sign-out-alt mr-2"></i>Logout
             </a>
         </div>
     </nav>
 
-    <div class="max-w-6xl mx-auto px-6 py-8">
-        <?php if(isset($_GET['success'])): ?>
-            <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6">
-                ✓ Action completed successfully
-            </div>
-        <?php endif; ?>
+    <div class="max-w-5xl mx-auto px-4 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Order Information -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Basic Info -->
+                <div class="bg-white rounded-xl shadow p-6">
+                    <h2 class="text-xl font-bold mb-4">Order Information</h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-gray-500 text-sm">Order ID</p>
+                            <p class="font-semibold"><?php echo $order['order_id']; ?></p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Status</p>
+                            <p class="font-semibold capitalize"><?php echo str_replace('_', ' ', $order['status']); ?></p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Service</p>
+                            <p class="font-semibold"><?php echo htmlspecialchars($order['service_name']); ?></p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Category</p>
+                            <p class="font-semibold capitalize"><?php echo $order['category']; ?></p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Original Price</p>
+                            <p class="font-semibold">₹<?php echo number_format($order['original_price'], 2); ?></p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Final Price (20% off)</p>
+                            <p class="font-semibold text-green-600">₹<?php echo number_format($order['final_price'], 2); ?></p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Deadline</p>
+                            <p class="font-semibold"><?php echo date('M d, Y', strtotime($order['deadline'])); ?></p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Order Date</p>
+                            <p class="font-semibold"><?php echo date('M d, Y H:i', strtotime($order['created_at'])); ?></p>
+                        </div>
+                    </div>
+                </div>
 
-        <div class="grid md:grid-cols-3 gap-6">
-            <!-- Order Details -->
-            <div class="md:col-span-2 space-y-6">
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h2 class="text-2xl font-bold text-gray-900 mb-4">Order Details</h2>
+                <!-- Customer Info -->
+                <div class="bg-white rounded-xl shadow p-6">
+                    <h2 class="text-xl font-bold mb-4">Customer Information</h2>
                     <div class="space-y-3">
-                        <div class="flex justify-between border-b pb-2">
-                            <span class="text-gray-600">Order ID:</span>
-                            <span class="font-mono font-semibold"><?php echo htmlspecialchars($order['order_id']); ?></span>
+                        <div>
+                            <p class="text-gray-500 text-sm">Name</p>
+                            <p class="font-semibold"><?php echo htmlspecialchars($order['customer_name']); ?></p>
                         </div>
-                        <div class="flex justify-between border-b pb-2">
-                            <span class="text-gray-600">Service:</span>
-                            <span class="font-semibold"><?php echo htmlspecialchars($order['service']); ?></span>
+                        <div>
+                            <p class="text-gray-500 text-sm">Email</p>
+                            <p class="font-semibold"><?php echo htmlspecialchars($order['customer_email']); ?></p>
                         </div>
-                        <div class="flex justify-between border-b pb-2">
-                            <span class="text-gray-600">Amount:</span>
-                            <span class="font-semibold text-purple-600">₹<?php echo number_format($order['final_price'], 2); ?></span>
-                        </div>
-                        <div class="flex justify-between border-b pb-2">
-                            <span class="text-gray-600">Created:</span>
-                            <span><?php echo date('d M Y, h:i A', strtotime($order['created_at'])); ?></span>
+                        <div>
+                            <p class="text-gray-500 text-sm">Phone</p>
+                            <p class="font-semibold"><?php echo htmlspecialchars($order['customer_phone']); ?></p>
                         </div>
                     </div>
                 </div>
 
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-xl font-bold text-gray-900 mb-4">Customer Information</h3>
-                    <div class="space-y-2">
-                        <p><span class="text-gray-600">Name:</span> <strong><?php echo htmlspecialchars($order['name']); ?></strong></p>
-                        <p><span class="text-gray-600">Email:</span> <strong><?php echo htmlspecialchars($order['email']); ?></strong></p>
-                        <p><span class="text-gray-600">Phone:</span> <strong><?php echo htmlspecialchars($order['phone']); ?></strong></p>
+                <!-- Work Details -->
+                <div class="bg-white rounded-xl shadow p-6">
+                    <h2 class="text-xl font-bold mb-4">Work Details</h2>
+                    <div class="space-y-3">
+                        <div>
+                            <p class="text-gray-500 text-sm">Title</p>
+                            <p class="font-semibold"><?php echo htmlspecialchars($order['work_title']); ?></p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Description</p>
+                            <p class="text-gray-700"><?php echo nl2br(htmlspecialchars($order['work_description'])); ?></p>
+                        </div>
+                        <?php if ($order['special_instructions']): ?>
+                        <div>
+                            <p class="text-gray-500 text-sm">Special Instructions</p>
+                            <p class="text-gray-700"><?php echo nl2br(htmlspecialchars($order['special_instructions'])); ?></p>
+                        </div>
+                        <?php endif; ?>
+                        <?php if ($order['requirement_file']): ?>
+                        <div>
+                            <p class="text-gray-500 text-sm">Requirement File</p>
+                            <a href="../uploads/requirements/<?php echo $order['requirement_file']; ?>" 
+                               class="text-purple-600 hover:text-purple-800 font-medium" download>
+                                <i class="fas fa-download mr-2"></i>Download File
+                            </a>
+                        </div>
+                        <?php endif; ?>
                     </div>
-                </div>
-
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-xl font-bold text-gray-900 mb-4">Requirements</h3>
-                    <p class="text-gray-700 whitespace-pre-wrap"><?php echo htmlspecialchars($order['requirements']); ?></p>
-                    <?php if($order['file_path']): ?>
-                        <a href="../<?php echo $order['file_path']; ?>" target="_blank" class="inline-block mt-4 text-purple-600 hover:text-purple-700">
-                            <i class="fas fa-download mr-2"></i>Download Uploaded File
-                        </a>
-                    <?php endif; ?>
                 </div>
             </div>
 
             <!-- Actions -->
             <div class="space-y-6">
-                <!-- Payment Status -->
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-bold text-gray-900 mb-4">Payment Status</h3>
-                    <div class="mb-4">
-                        <span class="px-3 py-1 text-sm font-semibold rounded-full 
-                            <?php echo $order['payment_status'] == 'verified' ? 'bg-green-100 text-green-700' : 
-                                      ($order['payment_status'] == 'paid' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'); ?>">
-                            <?php echo ucfirst($order['payment_status']); ?>
-                        </span>
-                    </div>
-                    <?php if($order['payment_screenshot']): ?>
-                        <img src="../<?php echo $order['payment_screenshot']; ?>" class="w-full rounded-lg mb-4">
-                        <?php if($order['payment_status'] != 'verified'): ?>
-                            <form method="POST">
-                                <button type="submit" name="verify_payment" class="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700">
-                                    Verify Payment
-                                </button>
-                            </form>
-                        <?php endif; ?>
-                    <?php else: ?>
-                        <p class="text-sm text-gray-500">No payment screenshot uploaded yet</p>
-                    <?php endif; ?>
-                </div>
-
-                <!-- Order Status -->
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-bold text-gray-900 mb-4">Order Status</h3>
+                <!-- Payment Verification -->
+                <?php if ($order['status'] === 'paid'): ?>
+                <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
+                    <h3 class="font-bold text-yellow-800 mb-4">Payment Verification</h3>
+                    <p class="text-sm text-yellow-700 mb-4">Customer has confirmed payment. Verify and start work.</p>
                     <form method="POST">
-                        <select name="order_status" class="w-full px-4 py-2 border rounded-lg mb-4">
-                            <option value="pending" <?php echo $order['order_status'] == 'pending' ? 'selected' : ''; ?>>Pending</option>
-                            <option value="in_progress" <?php echo $order['order_status'] == 'in_progress' ? 'selected' : ''; ?>>In Progress</option>
-                            <option value="completed" <?php echo $order['order_status'] == 'completed' ? 'selected' : ''; ?>>Completed</option>
-                        </select>
-                        <button type="submit" name="update_status" class="w-full gradient-bg text-white py-2 rounded-lg hover:opacity-90">
-                            Update Status
+                        <button type="submit" name="verify_payment" 
+                                class="w-full bg-yellow-600 text-white py-2 rounded-lg hover:bg-yellow-700">
+                            Verify & Start Work
                         </button>
                     </form>
                 </div>
+                <?php endif; ?>
 
                 <!-- Upload Delivery -->
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-bold text-gray-900 mb-4">Deliver Work</h3>
-                    <?php if($order['delivered_file']): ?>
-                        <p class="text-sm text-green-600 mb-2">✓ File delivered</p>
-                        <a href="../<?php echo $order['delivered_file']; ?>" class="text-purple-600 text-sm">View File</a>
-                    <?php else: ?>
-                        <form method="POST" enctype="multipart/form-data">
-                            <input type="file" name="delivered_file" required class="w-full px-4 py-2 border rounded-lg mb-4">
-                            <button type="submit" class="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700">
-                                Upload & Complete
-                            </button>
-                        </form>
-                    <?php endif; ?>
+                <?php if ($order['status'] === 'in_progress'): ?>
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-6">
+                    <h3 class="font-bold text-blue-800 mb-4">Upload Delivery</h3>
+                    <form method="POST" enctype="multipart/form-data">
+                        <input type="file" name="delivered_file" required 
+                               class="w-full mb-4 text-sm border rounded-lg p-2">
+                        <button type="submit" name="upload_delivery" 
+                                class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+                            Upload & Mark Delivered
+                        </button>
+                    </form>
                 </div>
+                <?php endif; ?>
+
+                <!-- Delivered -->
+                <?php if ($order['status'] === 'delivered' && $order['delivered_file']): ?>
+                <div class="bg-green-50 border border-green-200 rounded-xl p-6">
+                    <h3 class="font-bold text-green-800 mb-4">Delivered File</h3>
+                    <a href="../uploads/delivered/<?php echo $order['delivered_file']; ?>" 
+                       class="block w-full bg-green-600 text-white text-center py-2 rounded-lg hover:bg-green-700" download>
+                        <i class="fas fa-download mr-2"></i>Download File
+                    </a>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
